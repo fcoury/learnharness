@@ -19,6 +19,7 @@
  * menu is open.
  */
 
+import { isChatGPTOption, type ProviderOption } from "@/components/provider-options";
 import { useEffect, useRef, useState } from "react";
 import type { ModelCatalogEntry } from "@/src/core";
 import { fuzzyScore } from "@/src/core";
@@ -125,12 +126,12 @@ export function ModelMenuList({
 						>
 							<span className="flex items-center justify-between gap-2">
 								<span className="truncate text-card-foreground">{m.name}</span>
-								<span className="shrink-0 tabular-nums text-muted-foreground" title="USD per 1M tokens in/out">
-									{priceLabel(m.cost)}
+								<span className="shrink-0 tabular-nums text-muted-foreground" title={m.provider === "chatgpt" ? "Uses your ChatGPT plan allowance or credits" : "USD per 1M tokens in/out"}>
+									{m.provider === "chatgpt" ? "ChatGPT plan" : priceLabel(m.cost)}
 								</span>
 							</span>
 							<span className="flex items-center justify-between gap-2 text-muted-foreground">
-								<span className="truncate">{m.provider} · {m.id}</span>
+								<span className="truncate">{m.provider === "openai" ? "OpenAI API" : m.provider === "chatgpt" ? "ChatGPT plan" : m.provider} · {m.id}</span>
 								<span className="shrink-0 tabular-nums">{formatTokens(m.contextWindow)}</span>
 							</span>
 						</button>
@@ -196,8 +197,8 @@ export function ProviderMenuList({
 	providers,
 	onPick,
 }: {
-	providers: { id: string; envVar: string; label: string }[];
-	onPick: (provider: { id: string; envVar: string; label: string }) => void;
+	providers: ProviderOption[];
+	onPick: (provider: ProviderOption) => void;
 }) {
 	const [query, setQuery] = useState("");
 	const [menuIdx, setMenuIdx] = useState<number | null>(null);
@@ -214,9 +215,9 @@ export function ProviderMenuList({
 	}, [menuIdx]);
 
 	const results = providers
-		.map((p) => ({ p, s: fuzzyScore(query, p.id, p.envVar, p.label) }))
+		.map((p) => ({ p, s: fuzzyScore(query, p.id, isChatGPTOption(p) ? "ChatGPT plan subscription" : p.envVar, p.label) }))
 		.filter((r) => r.s !== null)
-		.sort((a, b) => b.s! - a.s! || a.p.id.localeCompare(b.p.id))
+		.sort((a, b) => Number(isChatGPTOption(b.p)) - Number(isChatGPTOption(a.p)) || b.s! - a.s! || a.p.id.localeCompare(b.p.id))
 		.map((r) => r.p);
 
 	return (
@@ -256,7 +257,7 @@ export function ProviderMenuList({
 			)}
 			<ul ref={listRef} data-testid="provider-list" className="flex max-h-72 flex-col overflow-y-auto px-1">
 				{results.map((p, i) => (
-					<li key={p.id}>
+					<li key={p.id} className={i > 0 && isChatGPTOption(results[i - 1]!) ? "mt-1 border-t border-border pt-1" : undefined}>
 						<button
 							type="button"
 							data-testid={`provider-option-${p.id.replace(/[^a-z0-9-]/gi, "_")}`}
@@ -267,7 +268,7 @@ export function ProviderMenuList({
 							}`}
 						>
 							<span className="truncate text-card-foreground">{p.label}</span>
-							<span className="shrink-0 font-mono text-[11px] text-muted-foreground">{p.envVar}</span>
+							<span className="shrink-0 font-mono text-[11px] text-muted-foreground">{isChatGPTOption(p) ? "Use your plan" : "API key"}</span>
 						</button>
 					</li>
 				))}

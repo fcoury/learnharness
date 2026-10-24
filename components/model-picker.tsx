@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CHATGPT_USAGE_URL } from "@/src/core";
 import type { ChatSettings, ModelCatalogEntry, ModelCatalogResponse, ModelsSettings, UserSettings } from "@/src/core";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { prettyModel } from "@/components/usage-format";
@@ -322,6 +323,7 @@ export function ModelControl({ chatId }: { chatId?: string }) {
 
 	return (
 		<div ref={containerRef} className="relative flex items-center gap-1.5" data-testid="model-control">
+   {effectiveProvider === "chatgpt" && <a href={CHATGPT_USAGE_URL} target="_blank" rel="noreferrer" className="text-xs text-muted-foreground underline" title="Manage ChatGPT plan usage">Using ChatGPT plan ↗</a>}
 			<Hint
 				// Trimmed (owner, subtlety round 2026-09-25): "Model selector"
 				// — the long sentence was way too much. ⌘K opens this same

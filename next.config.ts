@@ -39,6 +39,7 @@ const nextConfig: NextConfig = {
 		"*": [
 			"data/**/*",
 			"auth.json",
+   "chatgpt.json*",
 			".env*",
 		],
 	},
@@ -69,6 +70,11 @@ const nextConfig: NextConfig = {
 			// Wave E stage 2: resvg rasterizes visual-maker SVGs natively; same
 			// per-platform-binary story as the canvas above (one per build).
 			"node_modules/@resvg/resvg-js-*/**/*",
+			// ChatGPT OAuth uses a bundler-opaque import. Include its runtime and
+			// local dependencies: an API-key-only boot does not load these.
+			"node_modules/@earendil-works/pi-ai/dist/auth/oauth/openai-chatgpt.js",
+			"node_modules/@earendil-works/pi-ai/dist/auth/oauth/pkce.js",
+			"node_modules/@earendil-works/pi-ai/dist/utils/oauth-page.js",
 			"node_modules/@earendil-works/pi-ai/dist/providers/data/**/*",
 			"node_modules/@earendil-works/pi-agent-core/dist/**/*.json",
 		],

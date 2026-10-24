@@ -79,7 +79,7 @@ export interface ModelCatalogResponse {
 export interface CatalogProvider {
 	id: string;
 	/** The env var whose presence federates this provider in. */
-	envVar: string;
-	/** Whether that var is currently present (env or auth file). */
+	envVar?: string;
+	/** Whether this provider has usable credentials (key or ChatGPT connection). */
 	keyPresent: boolean;
 }

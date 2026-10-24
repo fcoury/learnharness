@@ -16,3 +16,7 @@ auth.json
 
 # dev-fresh launcher scratch (fresh-user sim): disposable per launch
 .fresh-data/
+
+# ChatGPT OAuth credentials and atomic snapshots
+chatgpt.json
+chatgpt.json.*.tmp

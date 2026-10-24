@@ -7,6 +7,7 @@ import {
 	type Models,
 	type StreamFunction,
 } from "@earendil-works/pi-ai";
+import { createChatGPTProvider, type ChatGPTModelRuntime } from "./chatgpt-provider.ts";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { type ModelRole } from "../../config.ts";
@@ -43,22 +44,32 @@ export interface PiEngine {
 
 export type { ThinkingLevel };
 
-let collection: ReturnType<typeof createModels> | undefined;
+const runtimeKey = Symbol.for("lh.piModels");
+const runtimeGlobal = globalThis as Record<symbol, { collection?: ReturnType<typeof createModels>; chatgpt?: ChatGPTModelRuntime }>;
+const runtime = runtimeGlobal[runtimeKey] ??= {};
+
+/** Storage is injected by the server composition, never imported by agents. */
+export function configureChatGPTRuntime(chatgpt: ChatGPTModelRuntime) {
+	if (runtime.chatgpt === chatgpt) return;
+	runtime.chatgpt = chatgpt;
+	runtime.collection = undefined;
+}
 
 /** The process-wide pi-ai Models collection — EVERY builtin provider's
  *  catalog (model slots wave, 2026-09-20): engines and the picker resolve
- *  against all of pi-ai's per-provider catalogs, so a settings slot can pin
+ *  against pi-ai catalogs and the connected ChatGPT account catalog, so a settings slot can pin
  *  any native model id. Auth is resolved per request by pi-ai itself from
- *  the environment (the keys seam reflects file-saved keys into env), and
+ *  the environment or the injected ChatGPT credential store, and
  *  a provider with no key simply fails its stream with "not configured" —
  *  honest, late, and unreachable through the picker, which gates on
  *  keyPresent. */
 export function piModels() {
-	if (!collection) {
-		collection = createModels({ identity: APP_IDENTITY });
-		for (const provider of builtinProviders()) collection.setProvider(provider);
+	if (!runtime.collection) {
+		runtime.collection = createModels({ identity: APP_IDENTITY, credentials: runtime.chatgpt?.credentials });
+		for (const provider of builtinProviders()) runtime.collection.setProvider(provider);
+		if (runtime.chatgpt) runtime.collection.setProvider(createChatGPTProvider(runtime.chatgpt.getModels));
 	}
-	return collection;
+	return runtime.collection;
 }
 
 /** OpenRouter API key (BYOK); tests never read this — they inject engines. */

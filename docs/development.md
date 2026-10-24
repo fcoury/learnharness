@@ -48,6 +48,20 @@ Secrets and machine-specific paths only. Model choice and thinking budgets are t
 
 The packaged desktop app takes keys from `userData/auth.json` (BYOK, mode 0600, read/written directly by the server via `LH_AUTH_FILE`). PDFs render natively with pdfjs/Skia; SVGs use resvg.
 
+## ChatGPT plan connection
+
+In setup, choose **ChatGPT · Use your plan** from the provider dropdown, then **Continue with ChatGPT**. In Settings → Keys, use **Add provider** to add a ChatGPT connection. Complete the browser authorization, including permission to use your ChatGPT plan. Choose the strong, cheap, and vision models after connecting. The same provider is used by teaching, practice, and background agents. This is the open-source, locally hosted integration; remotely hosted commercial deployments require OpenAI approval.
+
+The Node server owns the loopback listener, PKCE transaction, verified OpenID Connect identity, and token exchange. Browser code receives connection status and the authorization URL, never access or refresh tokens. Requests that mutate the connection require a matching local Origin/Host. One connected ChatGPT account/workspace is supported alongside independent API-key provider connections. Connected providers have separate Settings rows; the ChatGPT row’s options menu contains Manage usage, reconnect, and disconnect. Reconnect reuses its registration; disconnect removes tokens and the model cache while retaining the registration and host ID.
+
+Credentials live in `chatgpt.json` next to `AUTH_FILE` (desktop: Electron userData; development: repository root). Writes are atomic and owner-only. The shared credential adapter serializes token refresh within the app's single server process. Run one server per credential directory. The file and temporary snapshots are gitignored and excluded from desktop packaging.
+
+Model discovery intersects the connected account's visible models with pi-ai's known OpenAI models, which supply capabilities and limits. Unknown models remain unavailable until the dependency supports them. The cached catalog survives restart; discovery refreshes on catalog reads at most once per minute. OAuth refresh and Responses streaming use pi-ai's supported provider extension points. Subscription requests use the public Responses API with `store: false`, `stream: true`, and the supported tool contract. ChatGPT conversations are not accessible through this connection.
+
+Manage plan allowance and app limits in [ChatGPT usage settings](https://chatgpt.com/settings/usage). Model usage limits or revoked authorization may require reconnecting. API pricing is not used to estimate subscription charges.
+
+Official contracts: [registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations). The button logo is the official asset from OpenAI's sign-in documentation.
+
 ## Architecture
 
 Five layers, dependency arrows pointing inward only, machine-enforced as four ESLint zones (shell → barrels only; core and agent never import below themselves). Two composition roots, one writer per store. The full spec — layers, systems, runtime flows, invariants, seams: [`docs/architecture.md`](docs/architecture.md).

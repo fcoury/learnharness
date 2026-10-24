@@ -77,6 +77,12 @@ describe("stats bar", () => {
 		assert.match(html, /data-testid="stats-context">11k</);
 	});
 
+ it("labels subscription turns as ChatGPT plan usage rather than API charges", () => {
+  const html = renderToStaticMarkup(<StatsBar turns={[turn({ model: "chatgpt:gpt-6.1-sol" })]} />);
+  assert.match(html, /data-testid="stats-cost">ChatGPT plan/);
+  assert.ok(!html.includes("$0"));
+ });
+
 	it("prettyModel strips vendor + date suffix, keeps dashes", () => {
 		assert.equal(prettyModel("z-ai/glm-5.3-flash"), "glm-5.3-flash"); // dashes kept (owner round 5)
 		assert.equal(prettyModel("qwen/qwen3.8-max-0902"), "qwen3.8-max");

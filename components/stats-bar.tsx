@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { contextWindow, sessionCost, turnCost, type ChatSettings, type TurnUsage } from "@/src/core";
+import { usesChatGPTPlan, contextWindow, sessionCost, turnCost, type ChatSettings, type TurnUsage } from "@/src/core";
 import { formatTokens, formatUsd, prettyModel } from "@/components/usage-format";
 import { ModelControl, catalogLimits, useModelCatalog } from "@/components/model-picker";
 
@@ -87,7 +87,8 @@ export function StatsBar({
 	// Honest cost: show dollars only when at least one turn priced;
 	// otherwise "—" (never a fake $0.0000).
 	const pricedCount = turns.length - unpriced;
-	const costLabel = pricedCount > 0 ? formatUsd(cost) : "—";
+	const planTurns = turns.filter(turn => usesChatGPTPlan(turn.model)).length;
+ const costLabel = planTurns === turns.length && planTurns > 0 ? "ChatGPT plan" : pricedCount > 0 ? formatUsd(cost) : "—";
 	const lastModel = turns.at(-1)?.model;
 
 	return (
@@ -143,13 +144,14 @@ export function StatsBar({
 								</span>
 							</div>
 							<div className="flex justify-between gap-2">
-								<span>Total cost</span>
+								<span>API cost</span>
 								<span className="tabular-nums text-card-foreground">{costLabel}</span>
 							</div>
-							{unpriced > 0 && (
+							{planTurns > 0 && <p className="text-muted-foreground">{planTurns} turns used your ChatGPT plan allowance or credits.</p>}
+       {unpriced - planTurns > 0 && (
 								<div className="flex justify-between gap-2">
 									<span>Unpriced turns</span>
-									<span className="tabular-nums text-card-foreground">{unpriced}</span>
+									<span className="tabular-nums text-card-foreground">{unpriced - planTurns}</span>
 								</div>
 							)}
 						</div>
@@ -168,7 +170,7 @@ export function StatsBar({
 												</span>
 												<span className="flex shrink-0 items-center gap-2 tabular-nums text-card-foreground">
 													<span className="text-muted-foreground">{turn.steps.length} steps</span>
-													<span>{c === null ? "—" : formatUsd(c)}</span>
+													<span>{usesChatGPTPlan(turn.model) ? "ChatGPT plan" : c === null ? "—" : formatUsd(c)}</span>
 												</span>
 											</li>
 										);
