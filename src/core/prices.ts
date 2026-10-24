@@ -16,6 +16,7 @@
  * living in components.
  */
 
+import { usesChatGPTPlan } from "./chatgpt.ts";
 import type { CallUsage, ChatRecord, JobRecord, TurnUsage } from "./contracts.ts";
 
 /** Per-1M-token USD prices for one model. Fields absent where the provider
@@ -1665,6 +1666,7 @@ export function callCost(
 	usage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number },
 	model: string,
 ): number | null {
+	if (usesChatGPTPlan(model)) return null; // Subscription usage is not an API charge.
 	const price = PRICES[model];
 	if (!price) return null;
 	if (usage.inputTokens === undefined || usage.outputTokens === undefined) return null;

@@ -6,11 +6,24 @@
  * file (and the adapter implementations in src/store/).
  */
 
+import { chatGPTStore } from "../store/chatgpt.ts";
+import { configureChatGPTRuntime } from "../agent/models.ts";
+
+
+
 import { chatStore } from "../store/chats.ts";
 import { graphStore } from "../store/graph.ts";
 import { jobStore } from "../store/jobs.ts";
 import { settingsStore } from "../store/settings.ts";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
+const chatGPTRuntimeKey = Symbol.for("lh.chatgptRuntime");
+const chatGPTGlobals = globalThis as Record<symbol, import("../agent/chatgpt-provider.ts").ChatGPTModelRuntime | undefined>;
+configureChatGPTRuntime(chatGPTGlobals[chatGPTRuntimeKey] ??= {
+	credentials: chatGPTStore.credentials,
+	getModels: () => chatGPTStore.read()?.models ?? [],
+});
+export { chatGPTStore };
+
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
 export const stores = {
 	chatStore,

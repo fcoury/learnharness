@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import type { AuthKeyStatus } from "@/src/core";
+import type { AuthKeyStatus, ChatGPTStatus } from "@/src/core";
 import { classifyKeys, type ProviderKeyInfo } from "@/components/settings/keys-section";
 import { useModelCatalog } from "@/components/model-picker";
 import type { ModelCatalogResponse } from "@/src/core";
@@ -44,8 +44,8 @@ export function useZeroKeys(): boolean {
 	const read = useCallback(() => {
 		fetch("/api/keys")
 			.then((r) => r.json())
-			.then((body: { keys?: AuthKeyStatus[]; providers?: ProviderKeyInfo[] }) => {
-				setZeroKeys(!hasProviderKey(body.keys ?? [], body.providers));
+			.then((body: { keys?: AuthKeyStatus[]; providers?: ProviderKeyInfo[]; chatgpt?: ChatGPTStatus }) => {
+				setZeroKeys(!body.chatgpt?.connected && !hasProviderKey(body.keys ?? [], body.providers));
 			})
 			.catch(() => {});
 	}, []);
@@ -69,7 +69,7 @@ export function ZeroKeysPill({ onOpen, inline = false }: { onOpen: () => void; i
 			onClick={onOpen}
 			className="rounded-sm border border-border bg-card px-3 py-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50 hover:bg-accent cursor-pointer"
 		>
-			Add a provider key
+			Connect an AI provider
 		</button>
 	);
 	return inline ? button : <div className="pointer-events-auto mb-2 flex justify-center">{button}</div>;

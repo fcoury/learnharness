@@ -22,7 +22,8 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { piModels } from "../agent/models.ts";
 import { settingsStore } from "../store/settings.ts";
 import { effectiveSettings } from "./stores.ts";
-import { keyValue } from "./keys.ts";
+import { CHATGPT_PROVIDER } from "../core/chatgpt.ts";
+import { keyValue, providerKeyPresent } from "./keys.ts";
 import type { ChatSettings } from "../core/contracts/chat.ts";
 import type {
 	CatalogDefaults,
@@ -121,11 +122,13 @@ export function catalogSlots(): SlotPins {
  *  with keyPresent read env-wins through the keys seam, fresh per call —
  *  saving a key immediately federates the provider into the picker. */
 export function catalogProviders(): CatalogProvider[] {
-	return AUTH_PROVIDER_KEYS.map((p) => ({
+	const providers: CatalogProvider[] = AUTH_PROVIDER_KEYS.map((p) => ({
 		id: p.id,
 		envVar: p.envVar,
 		keyPresent: keyValue(p.envVar) !== undefined,
-	})).sort((a, b) => a.id.localeCompare(b.id));
+	}));
+	providers.push({ id: CHATGPT_PROVIDER, keyPresent: providerKeyPresent(CHATGPT_PROVIDER) });
+	return providers.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 /** The providers whose key is present — the picker federates exactly

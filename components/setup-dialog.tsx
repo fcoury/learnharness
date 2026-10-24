@@ -32,6 +32,8 @@
  * CMU title, z-50.
  */
 
+import { CHATGPT_OPTION, isChatGPTOption, providerDisplayLabel, type ProviderOption } from "@/components/provider-options";
+import { ChatGPTConnection } from "@/components/chatgpt-connection";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBackdropDismiss } from "@/components/backdrop-dismiss";
@@ -133,13 +135,13 @@ export function SetupKeysBody({
 	providers: ProviderKeyInfo[] | undefined;
 	/** The chosen provider; null = the picker trigger reads "Pick a
 	 *  provider…". */
-	provider: ProviderKeyInfo | null;
+	provider: ProviderOption | null;
 	value: string;
 	saving: boolean;
 	error: string | null;
 	menuOpen: boolean;
 	onToggleMenu: () => void;
-	onPick: (p: ProviderKeyInfo) => void;
+	onPick: (p: ProviderOption) => void;
 	onValue: (v: string) => void;
 	onSave: () => void;
 	/** The MenuShell anchor — wired by the wrapper (its triggerRef). */
@@ -147,9 +149,9 @@ export function SetupKeysBody({
 }) {
 	return (
 		<div className="flex flex-col gap-3 px-6 py-5" data-testid="setup-stage-keys">
-			<p className="text-sm text-foreground">Add a provider key.</p>
+			<p className="text-sm text-foreground">Connect an AI provider.</p>
 			<p className="text-xs text-muted-foreground">
-				Choose your AI provider and paste its API key. You’ll pick your models next.
+				Use your ChatGPT plan or connect with an API key. You’ll pick your models next.
 			</p>
 			<div className="flex flex-col gap-2">
 				<div ref={menuAnchor} className="relative max-w-96">
@@ -161,7 +163,7 @@ export function SetupKeysBody({
 						onClick={onToggleMenu}
 						className="flex h-7 w-full items-center gap-1 rounded-sm border border-border bg-background px-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50"
 					>
-						<span className="min-w-0 flex-1 truncate text-left">{provider ? provider.label : "Pick a provider…"}</span>
+						<span className="min-w-0 flex-1 truncate text-left">{provider ? providerDisplayLabel(provider) : "Choose a provider…"}</span>
 						<span aria-hidden className="text-muted-foreground">
 							▾
 						</span>
@@ -174,11 +176,12 @@ export function SetupKeysBody({
 							align="left"
 							menuClass="flex w-[22rem] flex-col rounded-xl border border-border bg-card p-2 text-xs shadow-xl"
 						>
-							<ProviderMenuList providers={providers ?? []} onPick={onPick} />
+							<ProviderMenuList providers={[CHATGPT_OPTION, ...(providers ?? [])]} onPick={onPick} />
 						</MenuShell>
 					)}
 				</div>
-				{provider && (
+				{provider && isChatGPTOption(provider) && <ChatGPTConnection />}
+				{provider && !isChatGPTOption(provider) && (
 					<div className="flex max-w-96 items-center gap-2">
 						<input
 							type="text"
@@ -241,7 +244,7 @@ export function SetupDialog({
 	// menu-open bit (the slot menus' dismissal machinery covers it too —
 	// see the trigger testid branch below).
 	const [keyProviders, setKeyProviders] = useState<ProviderKeyInfo[] | undefined>(undefined);
-	const [keyProvider, setKeyProvider] = useState<ProviderKeyInfo | null>(null);
+	const [keyProvider, setKeyProvider] = useState<ProviderOption | null>(null);
 	const [keyValue, setKeyValue] = useState("");
 	const [keySaving, setKeySaving] = useState(false);
 	const [keyError, setKeyError] = useState<string | null>(null);
@@ -339,7 +342,7 @@ export function SetupDialog({
 
 	if (!open) return null;
 
-	const stage = failed ? "keys" : setupStage(body ? body.providers : null);
+	const stage = failed || body?.models.length === 0 ? "keys" : setupStage(body ? body.providers : null);
 	const allPicked = SLOT_ORDER.every((s) => picked[s]);
 
 	/** Stage 1's save: PUT the pasted key, dispatch the keys signal, and
@@ -347,7 +350,7 @@ export function SetupDialog({
 	 *  the stage flips to the pickers on its own; the dialog stays mounted
 	 *  the whole way. Shape-gate 400s keep their user-facing line inline. */
 	async function saveKey() {
-		if (!keyProvider || !keyValue.trim() || keySaving) return;
+		if (!keyProvider || isChatGPTOption(keyProvider) || !keyValue.trim() || keySaving) return;
 		setKeySaving(true);
 		setKeyError(null);
 		const res = await fetch(`/api/keys/${encodeURIComponent(keyProvider.envVar)}`, {
@@ -422,9 +425,9 @@ export function SetupDialog({
 				</header>
 
 				{stage === "keys" ? (
-					<div className="flex flex-col px-6 py-5">
+					<div className="flex flex-col">
 						{failed ? (
-							<p className="text-sm text-foreground">
+							<p className="px-6 py-5 text-sm text-foreground">
 								Model catalog could not be loaded. Check the connection and retry.
 							</p>
 						) : (

@@ -51,6 +51,8 @@ import {
 	maskKey,
 	validateKeyShape,
 } from "../core/auth-keys.ts";
+import { chatGPTStore } from "./stores.ts";
+import { CHATGPT_PROVIDER } from "../core/chatgpt.ts";
 import { authStore } from "../store/auth.ts";
 
 // The once-per-process boot record — globalThis anchor (HMR re-imports the
@@ -200,6 +202,10 @@ export function keyValue(id: string): string | undefined {
  * (gate by what would run). Providers absent from AUTH_PROVIDER_KEYS take
  * no key at all: nothing to gate, present by definition. */
 export function providerKeyPresent(provider: string): boolean {
+	if (provider === CHATGPT_PROVIDER) {
+  const credential = chatGPTStore.read()?.credential;
+  return credential?.type === "oauth" && Array.isArray(credential.scopes) && credential.scopes.includes("chatgpt.tokens.use.direct");
+ }
 	const info = AUTH_PROVIDER_KEYS.find((p) => p.id === provider);
 	return info ? keyValue(info.envVar) !== undefined : true;
 }

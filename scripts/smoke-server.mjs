@@ -24,7 +24,7 @@
  * leaked server holds its port against the next run (learned the hard
  * way, same day).
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { probeEnv, verifyDemoRuntime } from "./smoke-demo-runtime.mjs";
 import { createRequire } from "node:module";
 import * as fs from "node:fs";
@@ -80,6 +80,24 @@ async function main() {
 	// HTTP boot alone never imports the dynamically loaded demo engine.
 	// Fail before packaging if its standalone dependency graph is incomplete.
 	verifyDemoRuntime(STANDALONE, RUNTIME);
+	// Exercise the lazy OAuth load, which keyless HTTP boot never reaches.
+	// Missing traced modules must fail packaging before a user signs in.
+	const oauthProbe = spawnSync(RUNTIME, ["--input-type=module", "-e", `
+		import assert from "node:assert/strict";
+		import { pathToFileURL } from "node:url";
+		globalThis.fetch = async () => { throw new Error("OAuth import probe must stay offline"); };
+		const { openaiProvider } = await import(pathToFileURL(process.argv[1]).href);
+		const auth = await openaiProvider().auth.oauth.toAuth({
+			type: "oauth", access: "offline-fixture", refresh: "offline-fixture", expires: Date.now() + 3600000,
+		});
+		assert.equal(auth.apiKey, "offline-fixture");
+	`, path.join(STANDALONE, "node_modules/@earendil-works/pi-ai/dist/providers/openai.js")], {
+		env: { ...probeEnv(process.env, os.tmpdir()), ELECTRON_RUN_AS_NODE: "1" },
+		encoding: "utf8", timeout: 10000,
+	});
+	if (oauthProbe.status !== 0 || oauthProbe.error) throw new Error(`ChatGPT OAuth runtime probe failed: ${oauthProbe.error?.message ?? oauthProbe.stderr}`);
+	console.log("[smoke-server] ChatGPT OAuth runtime ok (offline)");
+
 	const port = await freePort();
 	const url = `http://127.0.0.1:${port}`;
 	const home = fs.mkdtempSync(path.join(os.tmpdir(), "lh-smoke-"));

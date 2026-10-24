@@ -1,4 +1,7 @@
 "use client";
+import { CHATGPT_OPTION, isChatGPTOption, providerDisplayLabel, type ProviderKeyInfo, type ProviderOption } from "@/components/provider-options";
+export type { ProviderKeyInfo } from "@/components/provider-options";
+import { ChatGPTConnection } from "@/components/chatgpt-connection";
 /**
  * The Keys section (wave-5 polish, 2026-09-21 — owner design): a MINIMAL
  * key-value table. Provider left, masked key right, no description hints
@@ -23,24 +26,17 @@
  * effect immediately. Plaintext never returns from the store.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { AUTH_KEYS, type AuthKeyStatus } from "@/src/core";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AUTH_KEYS, type AuthKeyStatus, type ChatGPTStatus } from "@/src/core";
 import { SettingsGroup } from "./controls.tsx";
 import { ProviderMenuList } from "./model-menu.tsx";
 import { MenuShell } from "@/components/menu-shell";
 import { notifySettingsSaved } from "@/components/settings-signal";
 
-/** One pi-ai provider with plain API-key auth (the Platform seam —
- *  derived from pi-ai's own env-key table; no drift possible). */
-export interface ProviderKeyInfo {
-	id: string;
-	envVar: string;
-	label: string;
-}
-
 interface KeysResponse {
 	keys: AuthKeyStatus[];
 	providers?: ProviderKeyInfo[];
+	chatgpt?: ChatGPTStatus;
 }
 
 /** The curated tools group, pinned by id (the catalog owns the copy;
@@ -252,8 +248,8 @@ function AddProviderRow({
 	addable,
 	onPick,
 }: {
-	addable: ProviderKeyInfo[];
-	onPick: (p: ProviderKeyInfo) => void;
+	addable: ProviderOption[];
+	onPick: (p: ProviderOption) => void;
 }) {
 	const [open, setOpen] = useState(false);
 	const anchorRef = useRef<HTMLDivElement>(null);
@@ -289,7 +285,7 @@ function AddProviderRow({
 				onClick={() => setOpen((v) => !v)}
 				className="flex w-full items-center justify-between gap-3 rounded-sm px-1 py-1.5 text-left font-ui text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
 			>
-				<span>+ Add provider key</span>
+				<span>+ Add provider</span>
 				{addable.length > 0 && <span className="font-mono text-[11px]">{addable.length}</span>}
 			</button>
 			{open && (
@@ -330,7 +326,12 @@ export function KeysSection({
 	 *  deep-link (initialRow) and re-followed when it retargets. */
 	const [openRow, setOpenRow] = useState<string | null>(initialRow ?? null);
 	/** The paste editor for a freshly chosen Add-provider target. */
-	const [adding, setAdding] = useState<ProviderKeyInfo | null>(null);
+	const [adding, setAdding] = useState<ProviderOption | null>(null);
+	const [chatGPTStatus, setChatGPTStatus] = useState<ChatGPTStatus | null>(null);
+	const updateChatGPTStatus = useCallback((next: ChatGPTStatus) => {
+		setChatGPTStatus(next);
+		if (next.connected) setAdding(current => current && isChatGPTOption(current) ? null : current);
+	}, []);
 	const [addError, setAddError] = useState<string | null>(null);
 
 	// Escape folds any open editor (unfolded row or the Add-provider paste)
@@ -356,6 +357,7 @@ export function KeysSection({
 			.then((body: KeysResponse) => {
 				setStatuses(body.keys ?? []);
 				if (body.providers) setProviders(body.providers);
+				if (body.chatgpt) setChatGPTStatus(body.chatgpt);
 			})
 			.catch(() => setStatuses([]))
 			.finally(() => setLoading(false));
@@ -413,10 +415,13 @@ export function KeysSection({
 	return (
 		<>
 			<SettingsGroup label="Model providers" testid="group-provider-keys">
+				{(chatGPTStatus?.connected || chatGPTStatus?.pending || (adding && isChatGPTOption(adding))) && (
+					<ChatGPTConnection compact initialStatus={chatGPTStatus} onStatusChange={updateChatGPTStatus} />
+				)}
 				{providerRows.map((status) => (
 					<KeyTableRow
 						key={status.id}
-						label={providers?.find((p) => p.envVar === status.id)?.label ?? status.info?.label ?? status.id}
+						label={providers?.find((p) => p.envVar === status.id)?.id === "openai" ? "OpenAI API" : providers?.find((p) => p.envVar === status.id)?.label ?? status.info?.label ?? status.id}
 						docsUrl={status.info?.docsUrl}
 						status={status}
 						expanded={openRow === status.id}
@@ -433,16 +438,16 @@ export function KeysSection({
 				))}
 				{providers !== undefined && (
 					<AddProviderRow
-						addable={addable}
+						addable={chatGPTStatus?.connected || chatGPTStatus?.pending ? addable : [CHATGPT_OPTION, ...addable]}
 						onPick={(p) => {
 							setAdding(p);
 							setAddError(null);
 						}}
 					/>
 				)}
-				{adding && (
+				{adding && !isChatGPTOption(adding) && (
 					<div className="flex items-center gap-2 rounded-sm px-1 py-1.5" data-testid={`key-${adding.id}-editor`}>
-						<span className="shrink-0 font-ui text-xs text-foreground">{adding.label}</span>
+						<span className="shrink-0 font-ui text-xs text-foreground">{providerDisplayLabel(adding)}</span>
 						<AddProviderEditor provider={adding} onSave={(v) => void saveNewProvider(adding, v)} onCancel={() => setAdding(null)} error={addError} />
 					</div>
 				)}
